@@ -13,7 +13,7 @@
     "typescript"
   ],
   "files": [
-    "dist"
+    "dist/**/*"
   ],
   "bin": {
     "sqltyper": "dist/src/cli.js"
