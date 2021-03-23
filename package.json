@@ -28,7 +28,7 @@
     "clean": "rm -rf dist/",
     "prepublishOnly": "yarn clean && yarn build",
     "test": "jest",
-    "install": "npm run build"
+    "prepare": "npm run build"
   },
   "devDependencies": {
     "@types/jest": "^26.0.10",
