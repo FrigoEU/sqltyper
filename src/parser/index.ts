@@ -43,6 +43,7 @@ import {
   WithQuery,
   WindowDefinition,
   NamedWindowDefinition,
+  ProcedureCall,
 } from '../ast'
 
 import { optional } from './utils'
@@ -889,10 +890,19 @@ const delete_: Parser<Delete> = seq(
   Delete.create(table, as, where, returning || [])
 )
 
+const procedureCall: Parser<ProcedureCall> = seq(
+  reservedWord('CALL'),
+  identifier,
+  optional(seq2(symbol('.'), identifier)),
+  functionArguments
+)((_call, id1, id2, args) =>
+  ProcedureCall.create(id2 ? id1 : null, id2 ? id2 : id1, args)
+)
+
 // parse
 
 const statementParser: Parser<AST> = seq1(
-  oneOf<Statement>(select, insert, update, delete_),
+  oneOf<Statement>(select, insert, update, delete_, procedureCall),
   optional(symbol(';'))
 )
 

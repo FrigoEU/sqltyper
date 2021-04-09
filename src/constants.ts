@@ -10,6 +10,7 @@ export const sqlReservedWords: string[] = [
   'ASC',
   'BETWEEN',
   'BY',
+  'CALL',
   'CASE',
   'CONFLICT',
   'CONSTRAINT',

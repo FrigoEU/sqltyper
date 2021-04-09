@@ -803,6 +803,23 @@ export namespace Delete {
   }
 }
 
+export type ProcedureCall = {
+  kind: 'ProcedureCall'
+  procName: string
+  schema: string | null
+  argList: Expression[]
+}
+
+export namespace ProcedureCall {
+  export function create(
+    schema: string | null,
+    procName: string,
+    argList: Expression[]
+  ): ProcedureCall {
+    return { kind: 'ProcedureCall', schema, procName, argList }
+  }
+}
+
 // ---------------------------------------------------------------------
 
 export type WithQuery = {
@@ -823,7 +840,7 @@ export namespace WithQuery {
 
 // ---------------------------------------------------------------------
 
-export type Statement = Select | Insert | Update | Delete
+export type Statement = Select | Insert | Update | Delete | ProcedureCall
 
 export type AST = Statement
 
@@ -834,6 +851,7 @@ export function walk<T>(
     insert: (node: Insert) => T
     update: (node: Update) => T
     delete: (node: Delete) => T
+    procedureCall: (node: ProcedureCall) => T
   }
 ): T {
   switch (ast.kind) {
@@ -845,5 +863,7 @@ export function walk<T>(
       return handlers.update(ast)
     case 'Delete':
       return handlers.delete(ast)
+    case 'ProcedureCall':
+      return handlers.procedureCall(ast)
   }
 }

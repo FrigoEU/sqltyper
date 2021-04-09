@@ -177,6 +177,7 @@ function getOutputColumns(
           )
         )
       ),
+    procedureCall: () => InferM.right([]),
   })
 }
 
@@ -921,6 +922,7 @@ function getParamNullability(
     update: ({ table, updates }) =>
       findParamNullabilityFromUpdates(client, table, updates),
     delete: () => TaskEither.right([]),
+    procedureCall: () => TaskEither.right([]),
   })
 }
 
@@ -1095,6 +1097,7 @@ function inferRowCount(
         ? 'many'
         : // No RETURNING, no output
           'zero',
+    procedureCall: () => 'zero',
   })
 
   return { ...statement, rowCount }
