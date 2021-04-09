@@ -759,7 +759,14 @@ const expressionValues: Parser<Values> = seq(
   sepBy(
     symbol(','),
     parenthesized(
-      sepBy1(symbol(','), oneOf(seqNull(reservedWord('DEFAULT')), expression))
+      sepBy1(
+        symbol(','),
+        oneOf<null | Expression | Select>(
+          seqNull(reservedWord('DEFAULT')),
+          parenthesized(select),
+          expression
+        )
+      )
     )
   )
 )((_val, values) => Values.createExpressionValues(values))

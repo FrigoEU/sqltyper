@@ -931,7 +931,15 @@ function findParamsFromValues(
   return ast.Values.walk(values, {
     defaultValues: () => [R.repeat(Option.none, numInsertColumns)],
     exprValues: ({ valuesList }) =>
-      valuesList.map((values) => values.map(paramIndexFromExpr)),
+      valuesList.map((values) =>
+        values.map(function (p) {
+          if (p?.kind === 'Select') {
+            return Option.none
+          } else {
+            return paramIndexFromExpr(p)
+          }
+        })
+      ),
   })
 }
 

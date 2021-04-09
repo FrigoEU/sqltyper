@@ -684,11 +684,11 @@ export namespace Values {
 
   export type ExpressionValues = {
     kind: 'ExpressionValues'
-    valuesList: Array<Array<null | Expression>> // null means DEFAULT
+    valuesList: Array<Array<null | Expression | Select>> // null means DEFAULT
   }
 
   export function createExpressionValues(
-    valuesList: Array<Array<null | Expression>>
+    valuesList: Array<Array<null | Expression | Select>>
   ): ExpressionValues {
     return { kind: 'ExpressionValues', valuesList }
   }
