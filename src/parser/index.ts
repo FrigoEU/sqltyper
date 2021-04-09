@@ -211,6 +211,10 @@ const constantExpr: Parser<Expression> = seq(
     expectIdentifier('NULL'),
     match('[0-9]+(\\.[0-9]+)?([eE]-?[0-9]+)?'),
     match('\\.[0-9]+'),
+    seq(
+      reservedWord('INTERVAL'),
+      stringConstant
+    )((_interval, b) => 'interval ' + b),
     stringConstant
   ),
   _

@@ -35,6 +35,7 @@ export const sqlReservedWords: string[] = [
   'INNER',
   'INSERT',
   'INTERSECT',
+  'INTERVAL',
   'INTO',
   'IS',
   'ISNULL',
