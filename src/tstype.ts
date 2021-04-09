@@ -10,6 +10,7 @@ import { schemaClient } from './schema'
 export interface TypeClient {
   tsType(valueType: ValueType, nullable: boolean): Task.Task<TsType>
   columnType(column: NamedValue): Task.Task<{ name: string; type: TsType }>
+  isArray(oid: Oid): boolean
 }
 
 export async function typeClient(
@@ -20,6 +21,10 @@ export async function typeClient(
 
   function valueTsType(oid: Oid): string {
     return nodePgBuiltinTypes.get(oid) || enums?.get(oid) || defaultType
+  }
+
+  function isArray(oid: Oid): boolean {
+    return !!nodePgBuiltinArrayTypes.get(oid)
   }
 
   function arrayTsType(oid: Oid, elemNullable: boolean): Option.Option<string> {
@@ -81,6 +86,7 @@ export async function typeClient(
   return {
     tsType,
     columnType,
+    isArray,
   }
 }
 

@@ -53,7 +53,9 @@ export function generateTypeScript(
     ),
     Task.ap(funcParams(types, stmt, positionalOnly)),
     Task.ap(funcReturnType(types, stmt)),
-    Task.ap(Task.of(queryValues(stmt, positionalOnly))),
+    Task.ap(
+      Task.of(queryValues(types, stmt, positionalOnly, target === 'postgres'))
+    ),
     Task.ap(Task.of(outputValue(target, stmt)))
   )
 }
@@ -64,7 +66,7 @@ const typeScriptString = (
   module: string,
   funcName: string,
   sql: string
-) => (params: string) => (returnType: string) => (queryValues: string) => (
+) => (params: string) => (returnType: string) => (queryValues: string[]) => (
   outputValue: string
 ): string =>
   generators[target]({
@@ -85,7 +87,7 @@ type GeneratorOptions = {
   params: string
   returnType: string
   sql: string
-  queryValues: string
+  queryValues: string[]
   outputValue: string
 }
 type Generator = (opts: GeneratorOptions) => string
@@ -115,7 +117,7 @@ export async function ${funcName}(
   client: ClientBase | Pool${params}
 ): Promise<${returnType}> {
     const result = await client.query(\`\\
-${sql}\`${queryValues})
+${sql}\`${'[' + queryValues.join(',') + ']'})
     return ${outputValue}
 }
 `
@@ -130,6 +132,9 @@ ${sql}\`${queryValues})
     queryValues,
     outputValue,
   }: GeneratorOptions) {
+    const substitutedSqlStatement = queryValues.reduce(function (acc, p, i) {
+      return acc.replace(new RegExp('\\$' + (i + 1), 'gi'), '${' + p + '}')
+    }, sql)
     return `\
 ${topComment(sourceFileName)}
 
@@ -138,7 +143,7 @@ import * as postgres from '${module}'
 export async function ${funcName}(
   sql: postgres.Sql<{}>${params}
 ): Promise<${returnType}> {
-    const result = await sql.unsafe(\`${sql}\`${queryValues})
+    const result = await sql\`${substitutedSqlStatement}\`;
     return ${outputValue}
 }
 `
@@ -254,17 +259,22 @@ function namedFuncParams(
 }
 
 function queryValues(
+  types: TypeClient,
   stmt: StatementDescription,
-  positionalOnly: boolean
-): string {
+  positionalOnly: boolean,
+  encodeArray: boolean
+): string[] {
   if (!stmt.params.length) {
-    return ''
+    return []
   }
 
   const prefix = positionalOnly ? '' : 'params.'
-  return (
-    ', [ ' + stmt.params.map((param) => prefix + param.name).join(', ') + ' ]'
-  )
+  return stmt.params.map((param) => {
+    const p = prefix + param.name
+    return encodeArray && types.isArray(param.type.oid)
+      ? 'sql.array(' + p + ')'
+      : p
+  })
 }
 
 ////////////////////////////////////////////////////////////////////////

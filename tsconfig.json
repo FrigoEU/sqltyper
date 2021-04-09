@@ -5,6 +5,7 @@
     "strict": true,
     "allowJs": true,
     "resolveJsonModule": true,
-    "lib": ["ES2017"]
+    "lib": ["ES2017"],
+    "sourceMap": true
   }
 }
