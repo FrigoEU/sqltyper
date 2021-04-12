@@ -17,6 +17,7 @@ export type Column = {
   hidden: boolean
   name: string
   nullable: boolean
+  hasdef: boolean
   type: Oid
 }
 
@@ -68,6 +69,7 @@ export function schemaClient(postgresClient: postgres.Sql<{}>): SchemaClient {
           hidden: col.attnum < 0,
           name: col.attname,
           nullable: !col.attnotnull,
+          hasdef: col.atthasdef,
           type: col.atttypid,
         })),
     })

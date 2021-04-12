@@ -198,6 +198,7 @@ inferred ${outputColumns.length}, actual ${stmt.columns.length}`)
 actual output column names: inferred "${inferredColumnNames}", \
 actual: "${actualColumnNames}"`)
   }
+  debugger
 
   return Either.right({
     ...stmt,
@@ -902,7 +903,7 @@ function getParamNullability(
         return TaskEither.right([])
       }
       const valuesParamNullability = pipe(
-        TaskEither.right(combineParamNullability),
+        TaskEither.right(combineInsertParamNullability),
         TaskEither.ap(
           TaskEither.right(findParamsFromValues(valuesOrSelect, columns.length))
         ),
@@ -1014,7 +1015,7 @@ function findInsertColumns(
   )
 }
 
-const combineParamNullability = (
+const combineInsertParamNullability = (
   valuesListParams: Array<Array<Option.Option<number>>>
 ) => (targetColumns: Column[]): ParamNullability[] => {
   return pipe(
@@ -1022,7 +1023,10 @@ const combineParamNullability = (
       R.zip(targetColumns, valuesParams).map(([column, param]) =>
         pipe(
           param,
-          Option.map((index) => ({ index, nullable: column.nullable }))
+          Option.map((index) => ({
+            index,
+            nullable: column.nullable || column.hasdef,
+          }))
         )
       )
     ),

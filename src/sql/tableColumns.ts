@@ -12,11 +12,12 @@ export async function tableColumns(
     attname: string
     atttypid: number
     attnotnull: boolean
+    atthasdef: boolean
     attisdropped: boolean
   }>
 > {
   const result = await sql.unsafe(
-    `SELECT attnum, attname, atttypid, attnotnull, attisdropped
+    `SELECT attnum, attname, atttypid, attnotnull, atthasdef, attisdropped
 FROM pg_catalog.pg_attribute attr
 JOIN pg_catalog.pg_class cls on attr.attrelid = cls.oid
 JOIN pg_catalog.pg_namespace nsp ON nsp.oid = cls.relnamespace
