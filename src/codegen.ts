@@ -298,7 +298,13 @@ export function generateIndexModule(
   modules: TsModule[]
 ): string {
   const nestedDirsStr = nestedDirs
-    .map((dir) => `export * from '${path.relative(dirPath, dir.dirPath)}';`)
+    .map(
+      (dir) =>
+        `export * as ${dir.dirPath} from './${path.relative(
+          dirPath,
+          dir.dirPath
+        )}';`
+    )
     .join('\n')
   const modulesStr = modules
     .map(

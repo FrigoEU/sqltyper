@@ -48,8 +48,11 @@ export function generateTSCode(
     terminalColumns?: number | undefined
   }
 ): TaskEither.TaskEither<string, string> {
-  const { prettierFileName = null, target = 'pg', module = 'pg' } =
-    options || {}
+  const {
+    prettierFileName = null,
+    target = 'pg',
+    module = 'pg',
+  } = options || {}
 
   return pipe(
     TaskEither.right(stmt),
