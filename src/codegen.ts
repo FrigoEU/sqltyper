@@ -132,7 +132,7 @@ ${sql}\`${'[' + queryValues.join(',') + ']'})
     queryValues,
     outputValue,
   }: GeneratorOptions) {
-    const substitutedSqlStatement = queryValues.reduce(function (acc, p, i) {
+    const substitutedSqlStatement = queryValues.reduceRight(function (acc, p, i) {
       return acc.replace(new RegExp('\\$' + (i + 1), 'gi'), '${' + p + '}')
     }, sql)
     return `\
