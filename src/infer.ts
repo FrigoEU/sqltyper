@@ -898,20 +898,9 @@ function getParamNullability(
 ): TaskEither.TaskEither<string, ParamNullability[]> {
   return ast.walk(tree, {
     select: ({ ctes }) => {
-      const res = TaskEither.map(
-        (nullabilities: readonly ParamNullability[][]) =>
-          nullabilities.reduce(
-            (nullablility, acc) => acc.concat(nullablility),
-            []
-          )
-      )(
-        TaskEither.traverseArray((cte: ast.WithQuery) =>
-          getParamNullability(client, cte.query)
-        )(ctes)
-      )
-      return res
+      return getParamNullabilitiesFromCTEs(client, ctes)
     },
-    insert: ({ table, columns, valuesOrSelect, onConflict }) => {
+    insert: ({ table, columns, valuesOrSelect, onConflict, ctes }) => {
       if (valuesOrSelect.kind === 'Select') {
         return TaskEither.right([])
       }
@@ -927,17 +916,45 @@ function getParamNullability(
         table,
         onConflict
       )
+      const nullabilitiesFromCTEs = getParamNullabilitiesFromCTEs(client, ctes)
+
+      // Just concatting all nullabilities together
       return pipe(
         TaskEither.right(concat2<ParamNullability>()),
-        TaskEither.ap(valuesParamNullability),
-        TaskEither.ap(onConflictParamNullability)
+        TaskEither.ap(nullabilitiesFromCTEs),
+        TaskEither.ap(
+          pipe(
+            TaskEither.right(concat2<ParamNullability>()),
+            TaskEither.ap(valuesParamNullability),
+            TaskEither.ap(onConflictParamNullability)
+          )
+        )
       )
     },
-    update: ({ table, updates }) =>
-      findParamNullabilityFromUpdates(client, table, updates),
+    update: ({ table, updates, ctes }) =>
+      pipe(
+        TaskEither.right(concat2<ParamNullability>()),
+        TaskEither.ap(getParamNullabilitiesFromCTEs(client, ctes)),
+        TaskEither.ap(findParamNullabilityFromUpdates(client, table, updates))
+      ),
     delete: () => TaskEither.right([]),
     procedureCall: () => TaskEither.right([]),
   })
+}
+
+function getParamNullabilitiesFromCTEs(
+  client: SchemaClient,
+  ctes: ast.WithQuery[]
+): TaskEither.TaskEither<string, ParamNullability[]> {
+  const nullabilitiesFromCTEs = TaskEither.map(
+    (nullabilities: readonly ParamNullability[][]) =>
+      nullabilities.reduce((nullablility, acc) => acc.concat(nullablility), [])
+  )(
+    TaskEither.traverseArray((cte: ast.WithQuery) =>
+      getParamNullability(client, cte.query)
+    )(ctes)
+  )
+  return nullabilitiesFromCTEs
 }
 
 function findParamsFromValues(
