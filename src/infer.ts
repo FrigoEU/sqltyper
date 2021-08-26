@@ -897,7 +897,20 @@ function getParamNullability(
   tree: ast.AST
 ): TaskEither.TaskEither<string, ParamNullability[]> {
   return ast.walk(tree, {
-    select: () => TaskEither.right([]),
+    select: ({ ctes }) => {
+      const res = TaskEither.map(
+        (nullabilities: readonly ParamNullability[][]) =>
+          nullabilities.reduce(
+            (nullablility, acc) => acc.concat(nullablility),
+            []
+          )
+      )(
+        TaskEither.traverseArray((cte: ast.WithQuery) =>
+          getParamNullability(client, cte.query)
+        )(ctes)
+      )
+      return res
+    },
     insert: ({ table, columns, valuesOrSelect, onConflict }) => {
       if (valuesOrSelect.kind === 'Select') {
         return TaskEither.right([])
