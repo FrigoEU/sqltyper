@@ -24,14 +24,14 @@ export async function typeClient(
   }
 
   function isArray(oid: Oid): boolean {
-    return !!nodePgBuiltinArrayTypes.get(oid)
+    return !!arrayTypes?.get(oid)
   }
 
   function arrayTsType(oid: Oid, elemNullable: boolean): Option.Option<string> {
-    if (!nodePgBuiltinArrayTypes.get(oid)) {
-      // node-postgres won't convert this value to an array
-      return Option.none
-    }
+    // if (!nodePgBuiltinArrayTypes.get(oid)) {
+    //   // node-postgres won't convert this value to an array
+    //   return Option.none
+    // }
 
     const elemOid = arrayTypes?.get(oid)
     if (!elemOid) {
