@@ -68,7 +68,7 @@ export function generateTypeScript(
       )
     ),
     Task.ap(Task.of(outputValue(target, stmt))),
-    Task.ap(Task.of(extraImports(types, stmt))),
+    Task.ap(Task.of(extraImports(types))),
     Task.ap(Task.of(serializeFuncs(types)))
   )
 }
@@ -240,28 +240,14 @@ function outputValue(
   }
 }
 
-function extraImports(types: TypeClient, stmt: StatementDescription): string[] {
-  const extraImportsFromReturnType = stmt.columns.map((col) => {
-    const transform = types.getTransform(col.type.oid)
-    return transform && transform.import
-      ? Option.some(transform.import)
-      : Option.none
-  })
-
-  const extraImportsFromInputTypes = stmt.params.map((param) => {
-    const transform = types.getTransform(param.type.oid)
-    return transform && transform.import
-      ? Option.some(transform.import)
-      : Option.none
-  })
-
-  const extraImports_ = extraImportsFromReturnType.concat(
-    extraImportsFromInputTypes
+function extraImports(types: TypeClient): string[] {
+  return Arr.uniq(Eq.eqString)(
+    Arr.compact(
+      Array.from(types.getTransforms()).map(([_oid, transform]) => {
+        return transform.import ? Option.some(transform.import) : Option.none
+      })
+    )
   )
-
-  const extraImports = Arr.uniq(Eq.eqString)(Arr.compact(extraImports_))
-
-  return extraImports
 }
 
 function serializeFuncs(types: TypeClient): string[] {
