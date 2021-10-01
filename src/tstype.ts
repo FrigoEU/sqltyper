@@ -7,20 +7,36 @@ import { NamedValue, ValueType, Oid, TsType } from './types'
 import * as postgres from './postgres'
 import { schemaClient } from './schema'
 
+export type transform = {
+  tsType: string
+  serializeFunc: string
+  import: undefined | string
+}
+
 export interface TypeClient {
   tsType(valueType: ValueType, nullable: boolean): Task.Task<TsType>
   columnType(column: NamedValue): Task.Task<{ name: string; type: TsType }>
   isArray(oid: Oid): boolean
+  getTransform(oid: Oid): transform | null
+  getTransforms(): transforms
 }
 
+export type transforms = Map<Oid, transform>
+
 export async function typeClient(
+  transforms: transforms,
   postgresClient: postgres.Sql<{}>
 ): Promise<TypeClient> {
   let arrayTypes: Map<Oid, Oid> | null = null
   let enums: Map<Oid, string> | null = null
 
   function valueTsType(oid: Oid): string {
-    return nodePgBuiltinTypes.get(oid) || enums?.get(oid) || defaultType
+    return (
+      transforms.get(oid)?.tsType ||
+      nodePgBuiltinTypes.get(oid) ||
+      enums?.get(oid) ||
+      defaultType
+    )
   }
 
   function isArray(oid: Oid): boolean {
@@ -83,10 +99,20 @@ export async function typeClient(
     )
   }
 
+  function getTransforms() {
+    return transforms
+  }
+
+  function getTransform(oid: Oid): transform | null {
+    return transforms.get(oid) || null
+  }
+
   return {
     tsType,
     columnType,
     isArray,
+    getTransforms,
+    getTransform,
   }
 }
 

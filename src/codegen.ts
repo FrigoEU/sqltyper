@@ -1,6 +1,9 @@
 import * as path from 'path'
 
 import * as Either from 'fp-ts/lib/Either'
+import * as Option from 'fp-ts/lib/Option'
+import * as Array from 'fp-ts/lib/Array'
+import * as Eq from 'fp-ts/lib/Eq'
 import * as Task from 'fp-ts/lib/Task'
 import { pipe } from 'fp-ts/lib/pipeable'
 
@@ -56,7 +59,8 @@ export function generateTypeScript(
     Task.ap(
       Task.of(queryValues(types, stmt, positionalOnly, target === 'postgres'))
     ),
-    Task.ap(Task.of(outputValue(target, stmt)))
+    Task.ap(Task.of(outputValue(target, stmt))),
+    Task.ap(Task.of(extraImports(types, stmt)))
   )
 }
 
@@ -68,7 +72,7 @@ const typeScriptString = (
   sql: string
 ) => (params: string) => (returnType: string) => (queryValues: string[]) => (
   outputValue: string
-): string =>
+) => (extraImports: string[]): string =>
   generators[target]({
     sourceFileName,
     module,
@@ -78,6 +82,7 @@ const typeScriptString = (
     returnType,
     queryValues,
     outputValue,
+    extraImports,
   })
 
 type GeneratorOptions = {
@@ -89,6 +94,7 @@ type GeneratorOptions = {
   sql: string
   queryValues: string[]
   outputValue: string
+  extraImports: string[]
 }
 type Generator = (opts: GeneratorOptions) => string
 
@@ -107,11 +113,13 @@ const generators: Record<CodegenTarget, Generator> = {
     sql,
     queryValues,
     outputValue,
+    extraImports,
   }: GeneratorOptions) {
     return `\
 ${topComment(sourceFileName)}
 
 import { ClientBase, Pool } from '${module}'
+${extraImports}
 
 export async function ${funcName}(
   client: ClientBase | Pool${params}
@@ -131,14 +139,21 @@ ${sql}\`${'[' + queryValues.join(',') + ']'})
     sql,
     queryValues,
     outputValue,
+    extraImports,
   }: GeneratorOptions) {
-    const substitutedSqlStatement = queryValues.reduceRight(function (acc, p, i) {
+    const substitutedSqlStatement = queryValues.reduceRight(function (
+      acc,
+      p,
+      i
+    ) {
       return acc.replace(new RegExp('\\$' + (i + 1), 'gi'), '${' + p + '}')
-    }, sql)
+    },
+    sql)
     return `\
 ${topComment(sourceFileName)}
 
 import * as postgres from '${module}'
+${extraImports}
 
 export async function ${funcName}(
   sql: postgres.Sql<{}>${params}
@@ -212,6 +227,28 @@ function outputValue(
   }
 }
 
+function extraImports(types: TypeClient, stmt: StatementDescription): string[] {
+  const extraImportsFromReturnType = stmt.columns.map((col) => {
+    const transform = types.getTransform(col.type.oid)
+    return transform && transform.import
+      ? Option.some(transform.import)
+      : Option.none
+  })
+
+  const extraImportsFromInputTypes = stmt.params.map((param) => {
+    const transform = types.getTransform(param.type.oid)
+    return transform && transform.import
+      ? Option.some(transform.import)
+      : Option.none
+  })
+
+  const extraImports = extraImportsFromReturnType.concat(
+    extraImportsFromInputTypes
+  )
+
+  return Array.uniq(Eq.eqString)(Array.compact(extraImports))
+}
+
 function stringLiteral(str: string): string {
   return "'" + str.replace('\\', '\\\\').replace("'", "\\'") + "'"
 }
@@ -271,9 +308,11 @@ function queryValues(
   const prefix = positionalOnly ? '' : 'params.'
   return stmt.params.map((param) => {
     const p = prefix + param.name
+    const transform = types.getTransform(param.type.oid)
+    const pWithTransform = transform ? `${transform.serializeFunc}(${p})` : p
     return encodeArray && types.isArray(param.type.oid)
-      ? 'sql.array(' + p + ')'
-      : p
+      ? 'sql.array(' + pWithTransform + ')'
+      : pWithTransform
   })
 }
 

@@ -27,6 +27,7 @@ import {
 } from './index'
 import { traverseATs } from './fp-utils'
 import * as Warn from './Warn'
+import { transforms } from './tstype'
 
 type Options = {
   verbose: boolean
@@ -35,6 +36,25 @@ type Options = {
   target: CodegenTarget
   module: string
   terminalColumns: number | undefined
+}
+
+async function getTransforms(filepath: string): Promise<transforms> {
+  const contents = await fs.readFile(filepath, 'utf-8')
+  const transforms = JSON.parse(contents)
+  if (typeof transforms === 'object') {
+    const map: transforms = new Map()
+    for (var key in transforms) {
+      const val = transforms[key]
+      if (val && (val as any).tsType && (val as any).serializeFunc) {
+      } else {
+        throw new Error('Invalid transforms structure')
+      }
+      map.set(parseInt(key), transforms[key])
+    }
+    return map
+  } else {
+    throw new Error('Invalid transforms structure, should be an object')
+  }
 }
 
 async function main(): Promise<number> {
@@ -48,6 +68,10 @@ async function main(): Promise<number> {
     console.error('Cannot use --watch and --check together')
     return 1
   }
+
+  const transforms = args.transforms
+    ? await getTransforms(args.transforms)
+    : new Map()
 
   const options: Options = {
     verbose: args.verbose,
@@ -68,7 +92,7 @@ async function main(): Promise<number> {
   }
   const fileExtensions = extensions(args.ext)
 
-  const clients = await connect(args.database)
+  const clients = await connect(transforms, args.database)
   if (Either.isLeft(clients)) {
     console.error(clients.left)
     return 1
@@ -165,6 +189,12 @@ function parseArgs() {
       description: 'Apply prettier to output TypeScript files',
       type: 'boolean',
       default: false,
+    })
+    .option('transforms', {
+      alias: 'f',
+      description: 'JSON file containing transforms for PG types',
+      type: 'string',
+      default: '',
     })
     .option('pg-module', {
       description:
