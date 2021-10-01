@@ -57,10 +57,18 @@ export function generateTypeScript(
     Task.ap(funcParams(types, stmt, positionalOnly)),
     Task.ap(funcReturnType(types, stmt)),
     Task.ap(
-      Task.of(queryValues(types, stmt, positionalOnly, target === 'postgres'))
+      Task.of(
+        queryValues(
+          types,
+          stmt,
+          positionalOnly,
+          target === 'postgres',
+          target === 'postgres'
+        )
+      )
     ),
     Task.ap(Task.of(outputValue(target, stmt))),
-    Task.ap(Task.of(extraImports(types, stmt)))
+    Task.ap(Task.of(fromTransforms(types, stmt)))
   )
 }
 
@@ -72,7 +80,10 @@ const typeScriptString = (
   sql: string
 ) => (params: string) => (returnType: string) => (queryValues: string[]) => (
   outputValue: string
-) => (extraImports: string[]): string =>
+) => (fromTransforms: {
+  extraImports: string[]
+  serializeFuncs: string[]
+}): string =>
   generators[target]({
     sourceFileName,
     module,
@@ -82,7 +93,7 @@ const typeScriptString = (
     returnType,
     queryValues,
     outputValue,
-    extraImports,
+    fromTransforms,
   })
 
 type GeneratorOptions = {
@@ -94,7 +105,7 @@ type GeneratorOptions = {
   sql: string
   queryValues: string[]
   outputValue: string
-  extraImports: string[]
+  fromTransforms: { extraImports: string[]; serializeFuncs: string[] }
 }
 type Generator = (opts: GeneratorOptions) => string
 
@@ -113,13 +124,13 @@ const generators: Record<CodegenTarget, Generator> = {
     sql,
     queryValues,
     outputValue,
-    extraImports,
+    fromTransforms,
   }: GeneratorOptions) {
     return `\
 ${topComment(sourceFileName)}
 
 import { ClientBase, Pool } from '${module}'
-${extraImports}
+${fromTransforms.extraImports}
 
 export async function ${funcName}(
   client: ClientBase | Pool${params}
@@ -139,7 +150,7 @@ ${sql}\`${'[' + queryValues.join(',') + ']'})
     sql,
     queryValues,
     outputValue,
-    extraImports,
+    fromTransforms,
   }: GeneratorOptions) {
     const substitutedSqlStatement = queryValues.reduceRight(function (
       acc,
@@ -153,10 +164,10 @@ ${sql}\`${'[' + queryValues.join(',') + ']'})
 ${topComment(sourceFileName)}
 
 import * as postgres from '${module}'
-${extraImports}
+${fromTransforms.extraImports}
 
 export async function ${funcName}(
-  sql: postgres.Sql<{}>${params}
+  sql: postgres.Sql<{${fromTransforms.serializeFuncs}}>${params}
 ): Promise<${returnType}> {
     const result = await sql\`${substitutedSqlStatement}\`;
     return ${outputValue}
@@ -227,7 +238,10 @@ function outputValue(
   }
 }
 
-function extraImports(types: TypeClient, stmt: StatementDescription): string[] {
+function fromTransforms(
+  types: TypeClient,
+  stmt: StatementDescription
+): { extraImports: string[]; serializeFuncs: string[] } {
   const extraImportsFromReturnType = stmt.columns.map((col) => {
     const transform = types.getTransform(col.type.oid)
     return transform && transform.import
@@ -242,11 +256,25 @@ function extraImports(types: TypeClient, stmt: StatementDescription): string[] {
       : Option.none
   })
 
-  const extraImports = extraImportsFromReturnType.concat(
+  const extraImports_ = extraImportsFromReturnType.concat(
     extraImportsFromInputTypes
   )
 
-  return Array.uniq(Eq.eqString)(Array.compact(extraImports))
+  const extraImports = Array.uniq(Eq.eqString)(Array.compact(extraImports_))
+
+  const serializeFuncs_ = stmt.params.map((param) => {
+    const transform = types.getTransform(param.type.oid)
+    if (transform) {
+      return Option.some(
+        `${transform.serializeFunc}: (_: ${transform.tsType}) => string`
+      )
+    } else {
+      return Option.none
+    }
+  })
+
+  const serializeFuncs = Array.uniq(Eq.eqString)(Array.compact(serializeFuncs_))
+  return { extraImports, serializeFuncs }
 }
 
 function stringLiteral(str: string): string {
@@ -299,7 +327,8 @@ function queryValues(
   types: TypeClient,
   stmt: StatementDescription,
   positionalOnly: boolean,
-  encodeArray: boolean
+  encodeArray: boolean,
+  serializeFunctionOnConnection: boolean
 ): string[] {
   if (!stmt.params.length) {
     return []
@@ -309,7 +338,10 @@ function queryValues(
   return stmt.params.map((param) => {
     const p = prefix + param.name
     const transform = types.getTransform(param.type.oid)
-    const pWithTransform = transform ? `${transform.serializeFunc}(${p})` : p
+    const pWithTransform = transform
+      ? (serializeFunctionOnConnection ? 'sql.types.' : '') +
+        `${transform.serializeFunc}(${p})`
+      : p
     return encodeArray && types.isArray(param.type.oid)
       ? 'sql.array(' + pWithTransform + ')'
       : pWithTransform
