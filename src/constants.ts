@@ -135,6 +135,8 @@ export const operators: Operator[] = [
   op('~', null, 'safe'),
   op('<<', false, 'safe'),
   op('>>', false, 'safe'),
+  op('->', false, 'safe'),
+  op('->>', false, 'safe'),
 
   // 9.4. String Functions and Operators
   op('||', false, 'safe'),
