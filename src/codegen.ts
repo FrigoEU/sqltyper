@@ -2,7 +2,7 @@ import * as path from 'path'
 
 import * as Either from 'fp-ts/lib/Either'
 import * as Option from 'fp-ts/lib/Option'
-import * as Array from 'fp-ts/lib/Array'
+import * as Arr from 'fp-ts/lib/Array'
 import * as Eq from 'fp-ts/lib/Eq'
 import * as Task from 'fp-ts/lib/Task'
 import { pipe } from 'fp-ts/lib/pipeable'
@@ -68,7 +68,8 @@ export function generateTypeScript(
       )
     ),
     Task.ap(Task.of(outputValue(target, stmt))),
-    Task.ap(Task.of(fromTransforms(types, stmt)))
+    Task.ap(Task.of(extraImports(types, stmt))),
+    Task.ap(Task.of(serializeFuncs(types)))
   )
 }
 
@@ -80,10 +81,7 @@ const typeScriptString = (
   sql: string
 ) => (params: string) => (returnType: string) => (queryValues: string[]) => (
   outputValue: string
-) => (fromTransforms: {
-  extraImports: string[]
-  serializeFuncs: string[]
-}): string =>
+) => (extraImports: string[]) => (serializeFuncs: string[]): string =>
   generators[target]({
     sourceFileName,
     module,
@@ -93,7 +91,8 @@ const typeScriptString = (
     returnType,
     queryValues,
     outputValue,
-    fromTransforms,
+    extraImports,
+    serializeFuncs,
   })
 
 type GeneratorOptions = {
@@ -105,7 +104,8 @@ type GeneratorOptions = {
   sql: string
   queryValues: string[]
   outputValue: string
-  fromTransforms: { extraImports: string[]; serializeFuncs: string[] }
+  extraImports: string[]
+  serializeFuncs: string[]
 }
 type Generator = (opts: GeneratorOptions) => string
 
@@ -124,13 +124,14 @@ const generators: Record<CodegenTarget, Generator> = {
     sql,
     queryValues,
     outputValue,
-    fromTransforms,
+    extraImports,
+    serializeFuncs,
   }: GeneratorOptions) {
     return `\
 ${topComment(sourceFileName)}
 
 import { ClientBase, Pool } from '${module}'
-${fromTransforms.extraImports}
+${extraImports}
 
 export async function ${funcName}(
   client: ClientBase | Pool${params}
@@ -150,7 +151,8 @@ ${sql}\`${'[' + queryValues.join(',') + ']'})
     sql,
     queryValues,
     outputValue,
-    fromTransforms,
+    extraImports,
+    serializeFuncs,
   }: GeneratorOptions) {
     const substitutedSqlStatement = queryValues.reduceRight(function (
       acc,
@@ -164,10 +166,10 @@ ${sql}\`${'[' + queryValues.join(',') + ']'})
 ${topComment(sourceFileName)}
 
 import postgres from '${module}'
-${fromTransforms.extraImports}
+${extraImports}
 
 export async function ${funcName}(
-  sql: postgres.Sql<{${fromTransforms.serializeFuncs}}>${params}
+  sql: postgres.Sql<{${serializeFuncs}}>${params}
 ): Promise<${returnType}> {
     const result: postgres.RowList<any[]>  = await sql\`${substitutedSqlStatement}\`;
     return ${outputValue}
@@ -238,10 +240,7 @@ function outputValue(
   }
 }
 
-function fromTransforms(
-  types: TypeClient,
-  stmt: StatementDescription
-): { extraImports: string[]; serializeFuncs: string[] } {
+function extraImports(types: TypeClient, stmt: StatementDescription): string[] {
   const extraImportsFromReturnType = stmt.columns.map((col) => {
     const transform = types.getTransform(col.type.oid)
     return transform && transform.import
@@ -260,21 +259,17 @@ function fromTransforms(
     extraImportsFromInputTypes
   )
 
-  const extraImports = Array.uniq(Eq.eqString)(Array.compact(extraImports_))
+  const extraImports = Arr.uniq(Eq.eqString)(Arr.compact(extraImports_))
 
-  const serializeFuncs_ = stmt.params.map((param) => {
-    const transform = types.getTransform(param.type.oid)
-    if (transform) {
-      return Option.some(
-        `${transform.serializeFunc}: (_: ${transform.tsType}) => string`
-      )
-    } else {
-      return Option.none
-    }
-  })
+  return extraImports
+}
 
-  const serializeFuncs = Array.uniq(Eq.eqString)(Array.compact(serializeFuncs_))
-  return { extraImports, serializeFuncs }
+function serializeFuncs(types: TypeClient): string[] {
+  return Arr.uniq(Eq.eqString)(
+    Array.from(types.getTransforms()).map(([_oid, transform]) => {
+      return `${transform.serializeFunc}: (_: ${transform.tsType}) => string`
+    })
+  )
 }
 
 function stringLiteral(str: string): string {
