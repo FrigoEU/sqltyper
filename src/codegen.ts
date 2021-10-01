@@ -163,13 +163,13 @@ ${sql}\`${'[' + queryValues.join(',') + ']'})
     return `\
 ${topComment(sourceFileName)}
 
-import * as postgres from '${module}'
+import postgres from '${module}'
 ${fromTransforms.extraImports}
 
 export async function ${funcName}(
   sql: postgres.Sql<{${fromTransforms.serializeFuncs}}>${params}
 ): Promise<${returnType}> {
-    const result = await sql\`${substitutedSqlStatement}\`;
+    const result: postgres.RowList<any[]>  = await sql\`${substitutedSqlStatement}\`;
     return ${outputValue}
 }
 `
