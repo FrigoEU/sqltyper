@@ -321,7 +321,7 @@ function queryValues(
     const transform = types.getTransform(param.type.oid)
     const pWithTransform = transform
       ? (serializeFunctionOnConnection ? 'sql.types.' : '') +
-        `${transform.serializeFunc}(${p})`
+        `${p} && ${transform.serializeFunc}(${p})`
       : p
     return encodeArray && types.isArray(param.type.oid)
       ? 'sql.array(' + pWithTransform + ')'
