@@ -27,20 +27,20 @@ export async function typeClient(
   transforms: transforms,
   postgresClient: postgres.Sql<{}>
 ): Promise<TypeClient> {
-  let arrayTypes: Map<Oid, Oid> | null = null
-  let enums: Map<Oid, string> | null = null
+  let arrayTypes: Map<Oid, Oid> = await makeArrayTypesMap(postgresClient)
+  let enums: Map<Oid, string> = await makeEnumMap(postgresClient)
 
   function valueTsType(oid: Oid): string {
     return (
       transforms.get(oid)?.tsType ||
       nodePgBuiltinTypes.get(oid) ||
-      enums?.get(oid) ||
+      enums.get(oid) ||
       defaultType
     )
   }
 
   function isArray(oid: Oid): boolean {
-    return !!arrayTypes?.get(oid)
+    return !!arrayTypes.get(oid)
   }
 
   function arrayTsType(oid: Oid, elemNullable: boolean): Option.Option<string> {
@@ -49,7 +49,7 @@ export async function typeClient(
     //   return Option.none
     // }
 
-    const elemOid = arrayTypes?.get(oid)
+    const elemOid = arrayTypes.get(oid)
     if (!elemOid) {
       // This type is not an array according to
       // makeArrayTypesMap. Should not happen.
@@ -62,10 +62,6 @@ export async function typeClient(
 
   function tsType(valueType: ValueType, nullable: boolean): Task.Task<TsType> {
     return async () => {
-      if (arrayTypes == null)
-        arrayTypes = await makeArrayTypesMap(postgresClient)
-      if (enums == null) enums = await makeEnumMap(postgresClient)
-
       const result = ValueType.walk(valueType, {
         array: ({ oid, elemNullable }) =>
           pipe(
