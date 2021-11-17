@@ -369,7 +369,7 @@ export namespace Expression {
 export type WindowDefinition =
   | string // window name
   | {
-      partitionBy: Expression | null
+      partitionBy: Expression[] | null
       orderBy: OrderBy[] | null
     }
 

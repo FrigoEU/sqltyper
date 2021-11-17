@@ -125,7 +125,10 @@ const windowDefinition: Parser<WindowDefinition> = oneOf<WindowDefinition>(
       seq3(
         reservedWord('PARTITION'),
         reservedWord('BY'),
-        lazy(() => expression)
+        sepBy(
+          symbol(','),
+          lazy(() => expression)
+        )
       )
     ),
     optional(lazy(() => orderBy))
