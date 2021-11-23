@@ -132,8 +132,8 @@ const windowDefinition: Parser<WindowDefinition> = oneOf<WindowDefinition>(
       )
     ),
     optional(lazy(() => orderBy))
-  )((partition, order) => ({
-    partitionBy: partition,
+  )((partitionBy, order) => ({
+    partitionBy: partitionBy,
     orderBy: order,
   }))
 )
