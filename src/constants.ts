@@ -245,6 +245,7 @@ export const builtinFunctions: SqlFunction[] = [
   func('now', 'neverNull'),
   func('count', 'neverNull'),
   func('sum', 'safe'),
+  func('array_agg', 'safe'),
   func('to_char', 'safe'),
   func('row_number', 'safe'),
 ]
