@@ -135,8 +135,8 @@ export const nodePgBuiltinTypes = new Map<Oid, TsType>([
   [17, 'Buffer'], // bytea
   // TODO: JSON could be typed more accurately because it only has
   // string, number, boolean, null, and objects and arrays of them
-  [114, 'any'], // json
-  [3802, 'any'], // jsonb
+  [114, 'unknown'], // json
+  [3802, 'unknown'], // jsonb
 ])
 
 export const nodePgBuiltinArrayTypes = new Map<Oid, TsType>([
@@ -161,8 +161,8 @@ export const nodePgBuiltinArrayTypes = new Map<Oid, TsType>([
   [1182, 'Date[]'], // _date
   [1185, 'Date[]'], // timestamp with time zone[]
   [1187, '{ hours: number; minutes: number, seconds: number }[]'], // interval array
-  [199, 'any[]'], // json[]
-  [3807, 'any[]'], // jsonb[]
+  [199, 'unknown[]'], // json[]
+  [3807, 'unknown[]'], // jsonb[]
   [3907, 'string[]'], // numrange[]
   [2951, 'string[]'], // uuid[]
   [791, 'string[]'], // money[]
