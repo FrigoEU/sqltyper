@@ -325,7 +325,10 @@ function queryValues(
         }(${p})`
       : p
     return encodeArray && types.isArray(param.type.oid)
-      ? pWithTransform + ' && ' + 'sql.array(' + pWithTransform + ')'
+      ? (param.nullable === true ? pWithTransform + ' && ' : '') +
+          'sql.array(' +
+          pWithTransform +
+          ')'
       : pWithTransform
   })
 }
