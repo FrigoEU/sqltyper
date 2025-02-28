@@ -192,7 +192,7 @@ async function makeEnumMap(
 }
 
 function tsUnion(arr: TsType[]): TsType {
-  return arr.join(' | ')
+  return arr.sort().join(' | ')
 }
 
 function tsStringLiteral(str: string): string {

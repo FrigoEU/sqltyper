@@ -73,27 +73,32 @@ export function generateTypeScript(
   )
 }
 
-const typeScriptString = (
-  sourceFileName: string,
-  target: CodegenTarget,
-  module: string,
-  funcName: string,
-  sql: string
-) => (params: string) => (returnType: string) => (queryValues: string[]) => (
-  outputValue: string
-) => (extraImports: string[]) => (serializeFuncs: string[]): string =>
-  generators[target]({
-    sourceFileName,
-    module,
-    funcName,
-    sql,
-    params,
-    returnType,
-    queryValues,
-    outputValue,
-    extraImports,
-    serializeFuncs,
-  })
+const typeScriptString =
+  (
+    sourceFileName: string,
+    target: CodegenTarget,
+    module: string,
+    funcName: string,
+    sql: string
+  ) =>
+  (params: string) =>
+  (returnType: string) =>
+  (queryValues: string[]) =>
+  (outputValue: string) =>
+  (extraImports: string[]) =>
+  (serializeFuncs: string[]): string =>
+    generators[target]({
+      sourceFileName,
+      module,
+      funcName,
+      sql,
+      params,
+      returnType,
+      queryValues,
+      outputValue,
+      extraImports,
+      serializeFuncs,
+    })
 
 type GeneratorOptions = {
   sourceFileName: string
@@ -189,7 +194,7 @@ function funcReturnType(
   return pipe(
     traverseATs(stmt.columns, columnType(types)),
     Task.map((columnTypes) => {
-      const rowType = '{ ' + columnTypes.join('; ') + ' }'
+      const rowType = '{ ' + columnTypes.sort().join('; ') + ' }'
       switch (stmt.rowCount) {
         case 'zero':
           return 'number' // return the affected row count
@@ -204,14 +209,14 @@ function funcReturnType(
   )
 }
 
-const columnType = (types: TypeClient) => (
-  column: NamedValue
-): Task.Task<string> => {
-  return pipe(
-    types.columnType(column),
-    Task.map(({ name, type }) => `${stringLiteral(name)}: ${type}`)
-  )
-}
+const columnType =
+  (types: TypeClient) =>
+  (column: NamedValue): Task.Task<string> => {
+    return pipe(
+      types.columnType(column),
+      Task.map(({ name, type }) => `${stringLiteral(name)}: ${type}`)
+    )
+  }
 
 function outputValue(
   target: CodegenTarget,
