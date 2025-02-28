@@ -240,6 +240,7 @@ export const builtinFunctions: SqlFunction[] = [
   func('translate', 'safe'),
 
   // Not yet categorized
+  func('coalesce', 'safe'), // can be done better...
   func('avg', 'safe'),
   func('bool', 'safe'),
   func('now', 'neverNull'),
